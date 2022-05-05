@@ -45,6 +45,7 @@ func resourceGroupMembershipCreate(ctx context.Context, d *schema.ResourceData, 
 	userId := d.Get("user_id").(string)
 	logger(m).Info("adding user to group", "group", groupId, "user", userId)
 	client := getOktaClientFromMetadata(m)
+	// FIXME this should check the error code from the API to be flexible if the user is already in the group
 	_, err := client.Group.AddUserToGroup(ctx, groupId, userId)
 	if err != nil {
 		return diag.Errorf("failed to add user to group: %v", err)
@@ -53,6 +54,7 @@ func resourceGroupMembershipCreate(ctx context.Context, d *schema.ResourceData, 
 	bOff.MaxElapsedTime = time.Second * 10
 	bOff.InitialInterval = time.Second
 	err = backoff.Retry(func() error {
+		// FIXME, why are we checking if the user is in the group? If the API 201'd on the AddUserToGroup then we should trust that is what happened
 		inGroup, err := checkIfUserInGroup(ctx, client, groupId, userId)
 		if err != nil {
 			return backoff.Permanent(fmt.Errorf("failed to find user (%s) in group (%s) after addition with error: %v", userId, groupId, err))
@@ -74,6 +76,7 @@ func resourceGroupMembershipRead(ctx context.Context, d *schema.ResourceData, m 
 	userId := d.Get("user_id").(string)
 	logger(m).Info("checking for membership in group", "group", groupId, "user", userId)
 	client := getOktaClientFromMetadata(m)
+	// TODO in the TF plugin lifecycle read occurs just after a create is there a way to not run this check again?
 	inGroup, err := checkIfUserInGroup(ctx, client, groupId, userId)
 	if err != nil {
 		return diag.Errorf("unable to complete group check for user: %v", err)
