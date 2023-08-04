@@ -13,6 +13,17 @@ ifdef TEST_FILTER
 	TEST_FILTER := -run $(TEST_FILTER)
 endif
 
+DEFAULT_SMOKE_TESTS?=\
+  TestAccDataSourceOktaUser_read \
+  TestAccResourceOktaUserSchema_crud
+
+ifeq ($(strip $(SMOKE_TESTS)),)
+	SMOKE_TESTS = $(DEFAULT_SMOKE_TESTS)
+endif
+
+space := $(subst ,, )
+smoke_tests := $(subst $(space),\|,$(SMOKE_TESTS))
+
 default: build
 
 dep: # Download required dependencies
@@ -42,10 +53,13 @@ testacc:
 	TF_ACC=1 go test $(TEST) -v $(TESTARGS) $(TEST_FILTER) -timeout 120m
 
 test-play-vcr-acc:
-	OKTA_VCR_TF_ACC=play TF_ACC=1 go test $(TEST) -v $(TESTARGS) $(TEST_FILTER) -timeout 120m
+	OKTA_VCR_TF_ACC=play TF_ACC=1 go test -tags unit -mod=readonly -test.v -timeout 120m ./okta
+
+smoke-test-play-vcr-acc:
+	OKTA_VCR_TF_ACC=play TF_ACC=1 go test -tags unit -mod=readonly -test.v -timeout 120m -run ^$(smoke_tests)$$ ./okta
 
 test-record-vcr-acc:
-	OKTA_VCR_TF_ACC=record TF_ACC=1 go test $(TEST) -v $(TESTARGS) $(TEST_FILTER) -timeout 120m
+	OKTA_VCR_TF_ACC=record TF_ACC=1 go test -tags unit -mod=readonly -test.v -timeout 120m ./okta
 
 vet:
 	@echo "==> Checking source code against go vet and staticcheck"
